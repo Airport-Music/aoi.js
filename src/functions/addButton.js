@@ -5,15 +5,21 @@ module.exports = async (d) => {
     const data = d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
 
-    let [index, label, style, custom, disabled = "false", emoji] = data.inside.split(";");
+    if (!data.inside) return d.aoiError.fnError(d, "custom", {}, "Missing parameters inside the function.");
 
-    if (isNaN(index) || Number(index) < 1) return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Index Provided In");
+    let [index, label, style, custom, disabled = "false", emoji] = data.inside.splits;
+
+    if (isNaN(index) || Number(index) < 1) {
+        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Index Provided In");
+    }
 
     index = Number(index) - 1;
     style = isNaN(style) ? d.util.constants.ButtonStyleOptions[style.toUpperCase()] : Number(style);
     disabled = disabled === "true";
 
-    if (!style || style > 6 || style < 1) return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Style Provided In");
+    if (!style || style > 6 || style < 1) {
+        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Style Provided In");
+    }
 
     if (!Array.isArray(d.components)) d.components = [];
 
@@ -28,7 +34,7 @@ module.exports = async (d) => {
             };
         } else {
             emojiObj = {
-                name: emoji.trim()
+                name: emoji.trim().replace(/^<|>$/g, "") // remove brackets caso emoji não resolva
             };
         }
     }
