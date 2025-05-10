@@ -6,6 +6,11 @@ module.exports = async (d) => {
     const data = d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
 
+    // Verifica se data.inside existe e é uma string
+    if (!data.inside || typeof data.inside !== "string") {
+        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Argumentos Inválidos Fornecidos. Esperava-se uma string com argumentos separados.");
+    }
+
     // Parseia os parâmetros
     const [index, label, style, custom, disabled = "false", emoji] = data.inside.splits;
 
