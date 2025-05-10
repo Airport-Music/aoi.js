@@ -6,9 +6,6 @@ module.exports = async (d) => {
     const data = d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
 
-    // Log para depuração
-    console.log("data.inside:", data.inside, "typeof data.inside:", typeof data.inside);
-
     // Verifica se data.inside existe e é uma string
     if (!data.inside || typeof data.inside !== "string") {
         return d.aoiError.fnError(
@@ -20,15 +17,15 @@ module.exports = async (d) => {
     }
 
     // Parseia os parâmetros usando split(";")
-    let params;
-    try {
-        params = data.inside.split(";");
-    } catch (e) {
+    const params = data.inside.split(";").map(param => param.trim());
+    
+    // Verifica se há pelo menos 4 parâmetros (index, label, style, custom)
+    if (params.length < 4) {
         return d.aoiError.fnError(
             d,
             "custom",
             { inside: data.inside },
-            `Falha ao dividir argumentos. Esperava-se uma string válida. Erro: ${e.message}`
+            `Número insuficiente de argumentos. Esperados pelo menos 4 (índice;label;estilo;custom). Recebidos: ${params.length}`
         );
     }
 
@@ -41,8 +38,14 @@ module.exports = async (d) => {
     const rowIndex = Number(index) - 1;
 
     // Valida e converte o estilo
-    let buttonStyle = isNaN(style) ? d.util.constants.ButtonStyleOptions[style] : Number(style);
-    if (!buttonStyle || buttonStyle < 1 || buttonStyle > 6) {
+    let buttonStyle;
+    if (isNaN(style)) {
+        buttonStyle = d.util.constants.ButtonStyleOptions[style.toLowerCase()];
+    } else {
+        buttonStyle = Number(style);
+    }
+    
+    if (buttonStyle === undefined || buttonStyle < 1 || buttonStyle > 6) {
         return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Estilo Inválido Fornecido");
     }
 
@@ -50,7 +53,7 @@ module.exports = async (d) => {
     const isDisabled = disabled.toLowerCase() === "true";
 
     // Trata o emoji
-    let emojiSHIPData;
+    let emojiData;
     if (emoji) {
         emojiData = await d.util.getEmoji(d, emoji.addBrackets());
         emojiData = emojiData?.id || emoji?.addBrackets().trim();
@@ -62,29 +65,43 @@ module.exports = async (d) => {
         style: buttonStyle,
         label: label || undefined,
         disabled: isDisabled,
-        emoji: emojiData
     };
 
+    // Adiciona emoji se existir
+    if (emojiData) {
+        button.emoji = emojiData;
+    }
+
     // Trata estilos específicos de botão
-    if (buttonStyle === 6) { // Botão Premium
-        delete button.label;
-        delete button.emoji;
-        button.sku_id = custom || "";
-    } else if (buttonStyle === 5) { // Botão de URL
+    if (buttonStyle === 5) { // Botão de URL
         if (!custom) {
             return d.aoiError.fnError(d, "custom", { inside: data.inside }, "URL Obrigatória para Botão de Link");
         }
         button.url = custom;
+    } else if (buttonStyle === 6) { // Botão Premium
+        delete button.label;
+        delete button.emoji;
+        button.sku_id = custom || "";
     } else { // Outros tipos de botão
         if (!custom) {
             return d.aoiError.fnError(d, "custom", { inside: data.inside }, "ID Personalizado Obrigatório para Botão Não-Link");
         }
-        button.customId = custom;
+        button.custom_id = custom; // Correção: custom_id em vez de customId
+    }
+
+    // Inicializa o array de componentes se não existir
+    if (!d.components) {
+        d.components = [];
     }
 
     // Inicializa a linha de componentes se não existir
     if (!d.components[rowIndex]) {
         d.components[rowIndex] = { type: 1, components: [] };
+    }
+
+    // Verifica se não excedeu o limite de botões por linha (máximo 5)
+    if (d.components[rowIndex].components.length >= 5) {
+        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Limite de 5 botões por linha excedido");
     }
 
     // Adiciona o botão à linha de componentes
