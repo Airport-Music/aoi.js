@@ -5,22 +5,27 @@ module.exports = async (d) => {
     const data = d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
 
-    if (!data.inside) return d.aoiError.fnError(d, "custom", {}, "Missing parameters inside the function.");
-
-    let [index, label, style, custom, disabled = "false", emoji] = data.inside.splits;
-
-    if (isNaN(index) || Number(index) < 1) {
-        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Index Provided In");
+    if (!data.inside || !Array.isArray(data.inside.splits)) {
+        return d.aoiError.fnError(d, "custom", {}, "Missing or invalid parameters inside the function.");
     }
 
-    index = Number(index) - 1;
-    style = isNaN(style) ? d.util.constants.ButtonStyleOptions[style.toUpperCase()] : Number(style);
-    disabled = disabled === "true";
+    // Desestruturando os parâmetros do comando conforme o formato desejado
+    let [newRow, interactionIDorURL, label, style, disabled = "false", emoji, messageID] = data.inside.splits;
 
+    // Verificação do índice da linha (New row?)
+    if (newRow.toLowerCase() !== "new row?") {
+        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid format for New row?");
+    }
+
+    // Verificando se o índice de estilo é válido
+    style = isNaN(style) ? d.util.constants.ButtonStyleOptions?.[style.toUpperCase()] : Number(style);
     if (!style || style > 6 || style < 1) {
         return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Invalid Style Provided In");
     }
 
+    disabled = disabled === "true"; // Se o botão estiver desativado
+
+    // Verificando se a estrutura de componentes existe
     if (!Array.isArray(d.components)) d.components = [];
 
     let emojiObj;
@@ -34,11 +39,12 @@ module.exports = async (d) => {
             };
         } else {
             emojiObj = {
-                name: emoji.trim().replace(/^<|>$/g, "") // remove brackets caso emoji não resolva
+                name: emoji.trim().replace(/^<|>$/g, "") // Remove <> se for apenas o nome do emoji
             };
         }
     }
 
+    // Criando o objeto do botão
     const button = {
         label,
         type: 2,
@@ -50,16 +56,19 @@ module.exports = async (d) => {
         button.emoji = emojiObj;
     }
 
-    if (style === 6) {
+    // Dependendo do estilo, adiciona as propriedades específicas
+    if (style === 6) { // Product button
         delete button.label;
         delete button.emoji;
-        button["sku_id"] = custom;
-    } else if (style === 5) {
-        button["url"] = custom;
-    } else {
-        button["customId"] = custom;
+        button["sku_id"] = interactionIDorURL; // Uso do ID/URL como SKU
+    } else if (style === 5) { // Link button
+        button["url"] = interactionIDorURL; // A URL fornecida
+    } else { // Custom button
+        button["custom_id"] = interactionIDorURL; // Interação personalizada
     }
 
+    // Se o botão for para uma nova linha
+    const index = d.components.length; // Adiciona em uma nova linha
     if (!d.components[index]) d.components[index] = { type: 1, components: [] };
     d.components[index].components.push(button);
 
