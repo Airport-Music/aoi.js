@@ -3,19 +3,24 @@
  * @param {import("..").Data} d - O objeto de dados fornecido pelo framework AOI.
  */
 module.exports = async (d) => {
-    const data = d.util.aoiFunc(d);
+    const data =d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
 
     // Verifica se data.inside existe e é uma string
     if (!data.inside || typeof data.inside !== "string") {
-        return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Argumentos Inválidos Fornecidos. Esperava-se uma string com argumentos separados.");
+        return d.aoiError.fnError(
+            d,
+            "custom",
+            { inside: data.inside },
+            `Argumentos Inválidos Fornecidos. Esperava-se uma string com argumentos separados por ';'. Recebido: ${JSON.stringify(data.inside)}`
+        );
     }
 
-    // Parseia os parâmetros
-    const [index, label, style, custom, disabled = "false", emoji] = data.inside.splits;
+    // Parseia os parâmetros usando split(";")
+    const [index, label, style, custom, disabled = "false", emoji] = data.inside.split(";");
 
     // Valida o índice
-    if (isNaN(index) || Number(index) < 1) {
+    if (!index || isNaN(index) || Number(index) < 1) {
         return d.aoiError.fnError(d, "custom", { inside: data.inside }, "Índice Inválido Fornecido");
     }
     const rowIndex = Number(index) - 1;
