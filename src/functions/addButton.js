@@ -3,8 +3,11 @@
  * @param {import("..").Data} d - O objeto de dados fornecido pelo framework AOI.
  */
 module.exports = async (d) => {
-    const data =d.util.aoiFunc(d);
+    const data = d.util.aoiFunc(d);
     if (data.err) return d.error(data.err);
+
+    // Log para depuração
+    console.log("data.inside:", data.inside, "typeof data.inside:", typeof data.inside);
 
     // Verifica se data.inside existe e é uma string
     if (!data.inside || typeof data.inside !== "string") {
@@ -12,12 +15,24 @@ module.exports = async (d) => {
             d,
             "custom",
             { inside: data.inside },
-            `Argumentos Inválidos Fornecidos. Esperava-se uma string com argumentos separados por ';'. Recebido: ${JSON.stringify(data.inside)}`
+            `Argumentos Inválidos. Esperava-se uma string com argumentos separados por ';'. Recebido: ${JSON.stringify(data.inside)}`
         );
     }
 
     // Parseia os parâmetros usando split(";")
-    const [index, label, style, custom, disabled = "false", emoji] = data.inside.split(";");
+    let params;
+    try {
+        params = data.inside.split(";");
+    } catch (e) {
+        return d.aoiError.fnError(
+            d,
+            "custom",
+            { inside: data.inside },
+            `Falha ao dividir argumentos. Esperava-se uma string válida. Erro: ${e.message}`
+        );
+    }
+
+    const [index, label, style, custom, disabled = "false", emoji] = params;
 
     // Valida o índice
     if (!index || isNaN(index) || Number(index) < 1) {
@@ -35,7 +50,7 @@ module.exports = async (d) => {
     const isDisabled = disabled.toLowerCase() === "true";
 
     // Trata o emoji
-    let emojiData;
+    let emojiSHIPData;
     if (emoji) {
         emojiData = await d.util.getEmoji(d, emoji.addBrackets());
         emojiData = emojiData?.id || emoji?.addBrackets().trim();
